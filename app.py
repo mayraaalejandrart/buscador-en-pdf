@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from busqueda_pdf import buscar_por_nombres
 from busqueda_nit_pdf import buscar_por_nit_y_nombre
-from scripts.organizar import organizar_pdfs  # función que definimos antes
+from scripts.organizar import organizar_pdfs
 
 st.set_page_config(page_title="🔎 Buscador PDF + Organizador", layout="centered")
 
@@ -15,7 +15,6 @@ st.title("🔎 Buscador de nombres / NIT en PDFs")
 tipo_busqueda = st.radio("¿Qué tipo de búsqueda deseas hacer?", ("Por nombre de persona", "Por NIT y nombre de empresa"))
 
 archivo_txt = st.file_uploader("Sube el archivo de nombres o NITs (formato .TXT)", type=["txt"])
-
 archivos_pdf = st.file_uploader("Sube los archivos PDF", type=["pdf"], accept_multiple_files=True)
 
 iniciar = st.button("Iniciar búsqueda")
@@ -25,24 +24,43 @@ if iniciar:
         st.warning("Debes subir el archivo TXT y al menos un archivo PDF.")
     else:
         with st.spinner("Procesando archivos..."):
-            if tipo_busqueda == "Por nombre de persona":
-                paths = buscar_por_nombres(archivo_txt, archivos_pdf)
-            else:
-                paths = buscar_por_nit_y_nombre(archivo_txt, archivos_pdf)
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Reiniciar punteros de archivos
+                archivo_txt.seek(0)
+                for pdf in archivos_pdf:
+                    pdf.seek(0)
 
-            # Crear un ZIP con resultados
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
-                with zipfile.ZipFile(tmp_zip.name, "w") as zf:
+                # Ejecutar búsqueda
+                if tipo_busqueda == "Por nombre de persona":
+                    paths = buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados=temp_dir)
+                else:
+                    paths = buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados=temp_dir)
+
+                # Verificar paths generados
+                st.write("Archivos generados:", paths)
+
+                # Crear ZIP con los archivos generados
+                zip_path = os.path.join(temp_dir, "resultados.zip")
+                with zipfile.ZipFile(zip_path, "w") as zf:
                     for path in paths:
-                        zf.write(path, arcname=os.path.basename(path))
-                st.success("¡Búsqueda completada!")
-                with open(tmp_zip.name, "rb") as f:
-                    st.download_button(
-                        label="📦 Descargar resultados (.zip)",
-                        data=f,
-                        file_name="resultados.zip",
-                        mime="application/zip"
-                    )
+                        if os.path.isfile(path):
+                            zf.write(path, arcname=os.path.basename(path))
+
+                # Mostrar contenido ZIP (debug)
+                if os.path.isfile(zip_path):
+                    st.success("¡Búsqueda completada!")
+                    with zipfile.ZipFile(zip_path, "r") as zip_check:
+                        st.write("Contenidos del ZIP:", zip_check.namelist())
+
+                    with open(zip_path, "rb") as f:
+                        st.download_button(
+                            label="📦 Descargar resultados (.zip)",
+                            data=f,
+                            file_name="resultados.zip",
+                            mime="application/zip"
+                        )
+                else:
+                    st.error("❌ El archivo ZIP no se generó correctamente.")
 
 st.markdown("---")
 
