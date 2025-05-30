@@ -1,10 +1,9 @@
-
 import fitz  # PyMuPDF
 import os
 from datetime import datetime
 
-def buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
-    os.makedirs(carpeta_resultados, exist_ok=True)
+def buscar_por_nombres(archivo_txt, archivos_pdf, output_dir="resultados"):
+    os.makedirs(output_dir, exist_ok=True)
 
     nombres = [line.strip() for line in archivo_txt.read().decode("utf-8").splitlines() if line.strip()]
 
@@ -53,9 +52,10 @@ def buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados="resultados
         nombre_archivo = f"{nombre}"
         if resultados:
             nombre_archivo += "_coincidencia"
-        ruta_salida = os.path.join(carpeta_resultados, f"{nombre_archivo}.pdf")
+        ruta_salida = os.path.join(output_dir, f"{nombre_archivo}.pdf")
         doc.save(ruta_salida)
         doc.close()
         resultados_paths.append(ruta_salida)
 
     return resultados_paths
+    
