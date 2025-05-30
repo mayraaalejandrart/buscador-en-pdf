@@ -2,10 +2,7 @@ import streamlit as st
 import zipfile
 import tempfile
 import os
-from pathlib import Path
 import shutil
-
-# Importa tus funciones de búsqueda (ajusta según tu estructura)
 from busqueda_pdf import buscar_por_nombres
 from busqueda_nit_pdf import buscar_por_nit_y_nombre
 from scripts.organizar import organizar_pdfs
@@ -14,18 +11,10 @@ st.set_page_config(page_title="🔎 Buscador PDF", layout="centered")
 
 st.title("🔎 Buscador de nombres / NIT en PDFs")
 
-tipo_busqueda = st.radio(
-    "¿Qué tipo de búsqueda deseas hacer?",
-    ("Por nombre de persona", "Por NIT y nombre de empresa")
-)
+tipo_busqueda = st.radio("¿Qué tipo de búsqueda deseas hacer?", ("Por nombre de persona", "Por NIT y nombre de empresa"))
 
-archivo_txt = st.file_uploader(
-    "Sube el archivo de nombres o NITs (formato .TXT)", type=["txt"]
-)
-
-archivos_pdf = st.file_uploader(
-    "Sube los archivos PDF", type=["pdf"], accept_multiple_files=True
-)
+archivo_txt = st.file_uploader("Sube el archivo de nombres o NITs (formato .TXT)", type=["txt"])
+archivos_pdf = st.file_uploader("Sube los archivos PDF", type=["pdf"], accept_multiple_files=True)
 
 iniciar = st.button("Iniciar búsqueda")
 
@@ -35,19 +24,20 @@ if iniciar:
     else:
         with st.spinner("Procesando archivos..."):
             with tempfile.TemporaryDirectory() as temp_dir:
-                # Guardar PDFs subidos en carpeta temporal
-                pdf_paths = []
-                for pdf in archivos_pdf:
-                    path_pdf = os.path.join(temp_dir, pdf.name)
-                    with open(path_pdf, "wb") as f:
-                        f.write(pdf.getbuffer())
-                    pdf_paths.append(path_pdf)
-
-                # Guardar archivo txt temporal
+                # Guardar archivo TXT
                 path_txt = os.path.join(temp_dir, archivo_txt.name)
                 with open(path_txt, "wb") as f:
-                    f.write(archivo_txt.getbuffer())
+                    f.write(archivo_txt.read())
 
+                # Guardar PDFs
+                pdf_paths = []
+                for archivo in archivos_pdf:
+                    path_pdf = os.path.join(temp_dir, archivo.name)
+                    with open(path_pdf, "wb") as f:
+                        f.write(archivo.read())
+                    pdf_paths.append(path_pdf)
+
+                # Ejecutar búsqueda
                 if tipo_busqueda == "Por nombre de persona":
                     paths = buscar_por_nombres(path_txt, pdf_paths, output_dir=temp_dir)
                 else:
@@ -56,7 +46,7 @@ if iniciar:
                 st.session_state["resultado_dir"] = temp_dir
                 st.session_state["pdf_generados"] = paths
 
-                # Crear zip con resultados
+                # Comprimir resultados
                 zip_path = os.path.join(temp_dir, "resultados.zip")
                 with zipfile.ZipFile(zip_path, "w") as zf:
                     for path in paths:
@@ -65,7 +55,7 @@ if iniciar:
                 st.success("¡Búsqueda completada!")
                 with open(zip_path, "rb") as f:
                     st.download_button(
-                        label="📦 Descargar resultados (.zip)",
+                        label="📆 Descargar resultados (.zip)",
                         data=f,
                         file_name="resultados.zip",
                         mime="application/zip"
@@ -74,36 +64,34 @@ if iniciar:
 st.markdown("---")
 st.header("📄 Organizador y renombrador de PDFs (opcional)")
 
-usar_resultados = st.checkbox(
-    "Usar los resultados generados en la búsqueda anterior", value=True
-)
+usar_resultados = st.checkbox("Usar los resultados generados en la búsqueda anterior", value=True)
 
 pdfs_para_organizar = []
 
 if usar_resultados and "pdf_generados" in st.session_state:
     pdfs_para_organizar = st.session_state["pdf_generados"]
 else:
-    pdfs_subidos = st.file_uploader(
-        "O subir manualmente los PDFs a organizar", type=["pdf"], accept_multiple_files=True
-    )
+    pdfs_subidos = st.file_uploader("O subir manualmente los PDFs a organizar", type=["pdf"], accept_multiple_files=True)
     if pdfs_subidos:
-        # Guardar los PDFs subidos en temp para pasar ruta
         for archivo in pdfs_subidos:
             temp_path = os.path.join(tempfile.gettempdir(), archivo.name)
             with open(temp_path, "wb") as f:
-                f.write(archivo.getbuffer())
+                f.write(archivo.read())
             pdfs_para_organizar.append(temp_path)
 
-opcion_renombrado = st.selectbox(
-    "¿Cómo deseas nombrar los archivos PDF?",
-    options=[
-        ("Conservar el nombre original", '1'),
-        ("Usar el mismo nuevo nombre para todos", '2'),
-        ("Especificar un nombre diferente para cada archivo (no implementado)", '3')
-    ],
-    index=0,
-    format_func=lambda x: x[0]
-)
+modo = st.radio("Modo de renombrado:", ["Conservar nombre original", "Usar nombre global", "Especificar nombre por archivo"])
+
+nombre_global = ""
+nombres_individuales = {}
+
+if modo == "Usar nombre global":
+    nombre_global = st.text_input("Nombre global para todos los archivos (sin .pdf)")
+elif modo == "Especificar nombre por archivo" and pdfs_para_organizar:
+    st.markdown("### Nombres personalizados para cada archivo")
+    for path in pdfs_para_organizar:
+        nombre_predeterminado = os.path.basename(path)
+        nuevo_nombre = st.text_input(f"Nuevo nombre para {nombre_predeterminado} (sin .pdf):", key=nombre_predeterminado)
+        nombres_individuales[path] = nuevo_nombre
 
 if st.button("Ejecutar organizador"):
     if not pdfs_para_organizar:
@@ -111,18 +99,25 @@ if st.button("Ejecutar organizador"):
     else:
         ruta_salida = os.path.join(tempfile.gettempdir(), "organizados")
         os.makedirs(ruta_salida, exist_ok=True)
-        resultado = organizar_pdfs(pdfs_para_organizar, ruta_salida, opcion_renombrado=opcion_renombrado[1])
-        st.success(resultado)
 
-        # Crear zip con PDFs organizados
+        organizar_pdfs(
+            pdfs_para_organizar,
+            ruta_salida,
+            modo,
+            nombre_global,
+            nombres_individuales
+        )
+
+        st.success("Organización completada.")
+
         zip_organizados = os.path.join(ruta_salida, "organizados.zip")
         with zipfile.ZipFile(zip_organizados, "w") as z:
-            for carpeta in os.listdir(ruta_salida):
-                carpeta_path = os.path.join(ruta_salida, carpeta)
-                if os.path.isdir(carpeta_path):
-                    for f in os.listdir(carpeta_path):
-                        f_path = os.path.join(carpeta_path, f)
-                        z.write(f_path, arcname=os.path.join(carpeta, f))
+            for root, dirs, files in os.walk(ruta_salida):
+                for file in files:
+                    ruta_f = os.path.join(root, file)
+                    if os.path.isfile(ruta_f):
+                        arcname = os.path.relpath(ruta_f, start=ruta_salida)
+                        z.write(ruta_f, arcname=arcname)
 
         with open(zip_organizados, "rb") as f:
             st.download_button(
