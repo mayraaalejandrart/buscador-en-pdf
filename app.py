@@ -15,6 +15,7 @@ st.title("🔎 Buscador de nombres / NIT en PDFs")
 tipo_busqueda = st.radio("¿Qué tipo de búsqueda deseas hacer?", ("Por nombre de persona", "Por NIT y nombre de empresa"))
 
 archivo_txt = st.file_uploader("Sube el archivo de nombres o NITs (formato .TXT)", type=["txt"])
+
 archivos_pdf = st.file_uploader("Sube los archivos PDF", type=["pdf"], accept_multiple_files=True)
 
 iniciar = st.button("Iniciar búsqueda")
@@ -24,27 +25,24 @@ if iniciar:
         st.warning("Debes subir el archivo TXT y al menos un archivo PDF.")
     else:
         with st.spinner("Procesando archivos..."):
-            with tempfile.TemporaryDirectory() as temp_dir:
-                if tipo_busqueda == "Por nombre de persona":
-                    paths = buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados=temp_dir)
-                else:
-                    paths = buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados=temp_dir)
+            if tipo_busqueda == "Por nombre de persona":
+                paths = buscar_por_nombres(archivo_txt, archivos_pdf)
+            else:
+                paths = buscar_por_nit_y_nombre(archivo_txt, archivos_pdf)
 
-                # Crear un ZIP con resultados
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
-                    with zipfile.ZipFile(tmp_zip.name, "w") as zf:
-                        for path in paths:
-                            if os.path.isfile(path):
-                                zf.write(path, arcname=os.path.basename(path))
-
-                    st.success("¡Búsqueda completada!")
-                    with open(tmp_zip.name, "rb") as f:
-                        st.download_button(
-                            label="📦 Descargar resultados (.zip)",
-                            data=f,
-                            file_name="resultados.zip",
-                            mime="application/zip"
-                        )
+            # Crear un ZIP con resultados
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
+                with zipfile.ZipFile(tmp_zip.name, "w") as zf:
+                    for path in paths:
+                        zf.write(path, arcname=os.path.basename(path))
+                st.success("¡Búsqueda completada!")
+                with open(tmp_zip.name, "rb") as f:
+                    st.download_button(
+                        label="📦 Descargar resultados (.zip)",
+                        data=f,
+                        file_name="resultados.zip",
+                        mime="application/zip"
+                    )
 
 st.markdown("---")
 
