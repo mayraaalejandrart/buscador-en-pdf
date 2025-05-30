@@ -4,14 +4,16 @@ import tempfile
 import os
 from pathlib import Path
 import shutil
-from scripts.organizar import organizar_pdfs
+
+# Corrige la importación según dónde tengas la función organizar_pdfs
+# from scripts.organizar import organizar_pdfs
+from scripts.organizar_utils import organizar_pdfs  # <-- Ajusta esto al archivo correcto
 
 st.set_page_config(page_title="🗂️ Organizador de PDFs", layout="centered")
 
 st.title("🗂️ Organizador de PDFs")
 
 # Crear pestañas
-
 tab1, tab2 = st.tabs(["ℹ️ Instrucciones", "📁 Organizar PDFs"])
 
 with tab1:
@@ -29,37 +31,43 @@ with tab1:
 
 with tab2:
     archivos_para_organizar = st.file_uploader("Sube los PDFs a organizar", type=["pdf"], accept_multiple_files=True)
-    ruta_salida = st.text_input("Ruta de salida donde organizar los PDFs", value="organizados")
 
     if st.button("📁 Organizar PDFs"):
         if not archivos_para_organizar:
             st.warning("Por favor, sube al menos un archivo PDF.")
         else:
             with tempfile.TemporaryDirectory() as temp_dir:
-                pdf_paths = []
-                for archivo in archivos_para_organizar:
-                    temp_path = Path(temp_dir) / archivo.name
-                    with open(temp_path, "wb") as f:
-                        f.write(archivo.read())
-                    pdf_paths.append(temp_path)
+                try:
+                    pdf_paths = []
+                    for archivo in archivos_para_organizar:
+                        temp_path = Path(temp_dir) / archivo.name
+                        with open(temp_path, "wb") as f:
+                            f.write(archivo.read())
+                        pdf_paths.append(temp_path)
 
-                # Ejecutar función organizadora
-                resultado = organizar_pdfs(pdf_paths, ruta_salida)
-                st.success(resultado)
+                    # Crear un directorio de salida dentro del temporal
+                    ruta_salida = Path(temp_dir) / "organizados"
+                    ruta_salida.mkdir(exist_ok=True)
 
-                # Crear archivo ZIP
-                zip_path = Path(temp_dir) / "organizados.zip"
-                with zipfile.ZipFile(zip_path, "w") as zipf:
-                    for folder, _, files in os.walk(ruta_salida):
-                        for file in files:
-                            file_path = Path(folder) / file
-                            zipf.write(file_path, arcname=file_path.relative_to(ruta_salida))
+                    # Ejecutar función organizadora
+                    resultado = organizar_pdfs(pdf_paths, ruta_salida)
+                    st.success(resultado)
 
-                # Botón de descarga
-                with open(zip_path, "rb") as f:
-                    st.download_button(
-                        label="📦 Descargar PDFs organizados (.zip)",
-                        data=f,
-                        file_name="organizados.zip",
-                        mime="application/zip"
-                    )
+                    # Crear archivo ZIP
+                    zip_path = Path(temp_dir) / "organizados.zip"
+                    with zipfile.ZipFile(zip_path, "w") as zipf:
+                        for folder, _, files in os.walk(ruta_salida):
+                            for file in files:
+                                file_path = Path(folder) / file
+                                zipf.write(file_path, arcname=file_path.relative_to(ruta_salida))
+
+                    # Botón de descarga
+                    with open(zip_path, "rb") as f:
+                        st.download_button(
+                            label="📦 Descargar PDFs organizados (.zip)",
+                            data=f,
+                            file_name="organizados.zip",
+                            mime="application/zip"
+                        )
+                except Exception as e:
+                    st.error(f"Ocurrió un error al organizar los PDFs: {e}")
