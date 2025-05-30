@@ -1,52 +1,44 @@
+import os
 from pathlib import Path
 import shutil
 
-def organizar_pdfs(pdfs_paths, output_dir, opcion, nombre_global=None, nombres_individuales=None):
+def organizar_pdfs(lista_pdfs, ruta_salida, opcion_renombrado='1'):
     """
-    Organiza y renombra PDFs según la opción elegida.
-    
-    Args:
-        pdfs_paths (list of str): Lista de rutas a archivos PDF a organizar.
-        output_dir (str): Carpeta donde se crearán las subcarpetas y se guardarán los archivos.
-        opcion (str): '1', '2' o '3' para seleccionar tipo de renombrado.
-        nombre_global (str, opcional): Nombre global para opción '2', sin extensión .pdf.
-        nombres_individuales (list of str, opcional): Lista de nombres para opción '3', sin extensión .pdf.
-    
-    Retorna:
-        str: Mensaje resumen o error.
+    Organiza y renombra PDFs.
+
+    lista_pdfs: lista de rutas a archivos PDF (str o Path)
+    ruta_salida: carpeta donde se organizarán los PDFs
+    opcion_renombrado: '1' conservar nombre original
+                       '2' usar mismo nombre para todos (por ahora fijo)
+                       '3' (no implementado) nombre diferente para cada archivo
     """
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    os.makedirs(ruta_salida, exist_ok=True)
 
-    if opcion not in ('1', '2', '3'):
-        return "Opción inválida."
+    nombre_global = None
+    if opcion_renombrado == '2':
+        # Por ejemplo, nombre fijo para todos
+        nombre_global = "archivo_unico.pdf"
 
-    if opcion == '2' and not nombre_global:
-        return "Se requiere un nombre global para la opción 2."
-
-    if opcion == '3' and (not nombres_individuales or len(nombres_individuales) != len(pdfs_paths)):
-        return "Se requieren nombres individuales para todos los archivos en la opción 3."
-
-    for i, pdf_path in enumerate(pdfs_paths):
-        pdf_path = Path(pdf_path)
-        # Crear carpeta con el nombre base del archivo PDF
-        folder_path = output_dir / pdf_path.stem
+    for pdf_path in lista_pdfs:
+        pdf = Path(pdf_path)
+        folder_name = pdf.stem
+        folder_path = Path(ruta_salida) / folder_name
         folder_path.mkdir(exist_ok=True)
 
-        # Definir nuevo nombre según opción
-        if opcion == '1':
-            new_file_name = pdf_path.name
-        elif opcion == '2':
+        if opcion_renombrado == '1':
+            new_file_name = pdf.name
+        elif opcion_renombrado == '2':
             new_file_name = nombre_global
-            if not new_file_name.endswith(".pdf"):
-                new_file_name += ".pdf"
-        elif opcion == '3':
-            new_file_name = nombres_individuales[i]
-            if not new_file_name.endswith(".pdf"):
-                new_file_name += ".pdf"
+        elif opcion_renombrado == '3':
+            # Aquí podrías implementar lógica para pedir nombres distintos
+            # Por ahora dejamos el nombre original
+            new_file_name = pdf.name
+        else:
+            new_file_name = pdf.name
 
         destino = folder_path / new_file_name
-        # Copiar el PDF al nuevo destino con el nombre definido
-        shutil.copy(pdf_path, destino)
 
-    return f"Archivos organizados y renombrados en {len(pdfs_paths)} carpetas."
+        # Copiar para no perder original
+        shutil.copy2(pdf, destino)
+
+    return f"Archivos organizados y renombrados en {len(lista_pdfs)} carpetas."
