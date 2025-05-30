@@ -1,42 +1,73 @@
-from fpdf import FPDF
+
+import fitz  # PyMuPDF
 import os
+from datetime import datetime
 
-def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, output_dir):
-    lineas = archivo_txt.read().decode("utf-8").splitlines()
-    lineas = [l.strip() for l in lineas if l.strip() and ";" in l]
+def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
+    os.makedirs(carpeta_resultados, exist_ok=True)
 
-    resultados = []
+    nombres_nits = []
+    for linea in archivo_txt.read().decode("utf-8").splitlines():
+        partes = [p.strip() for p in linea.split("\t")]
+        if len(partes) == 2:
+            nit, nombre = partes
+            nombres_nits.append((nombre, nit))
 
-    for linea in lineas:
-        nit, nombre_empresa = map(str.strip, linea.split(";"))
-        nombre_archivo = f"{nit}_{nombre_empresa.replace(' ', '_')}.pdf"
-        if not nombre_archivo.endswith(".pdf"):
-            nombre_archivo += ".pdf"
-        path_salida = os.path.join(output_dir, nombre_archivo)
+    pdf_textos = {}
+    for pdf in archivos_pdf:
+        texto_total = ""
+        with fitz.open(stream=pdf.read(), filetype="pdf") as doc:
+            for pagina in doc:
+                texto_total += pagina.get_text()
+        pdf_textos[pdf.name] = texto_total.lower()
 
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        pdf.cell(200, 10, txt=f"NIT: {nit}", ln=True)
-        pdf.cell(200, 10, txt=f"Empresa: {nombre_empresa}", ln=True)
+    resultados_paths = []
+    for nombre, nit in nombres_nits:
+        nombre_lower = nombre.lower()
+        nit_lower = nit.lower()
 
-        coincidencias = []
+        resultados = [
+            archivo for archivo, texto in pdf_textos.items()
+            if nombre_lower in texto or nit_lower in texto
+        ]
 
-        for archivo in archivos_pdf:
-            contenido = archivo.read().decode("latin-1", errors="ignore")
-            archivo.seek(0)
-            if nit in contenido and nombre_empresa.lower() in contenido.lower():
-                coincidencias.append(archivo.name)
+        doc = fitz.open()
+        page = doc.new_page()
+        x, y = 50, 50
+        line_spacing = 16
+        rojo = (1, 0, 0)
 
-        for c in coincidencias:
-            pdf.cell(200, 10, txt=f"- Coincidencia en: {c}", ln=True)
+        page.insert_text((x, y), "Resultados de la búsqueda", fontsize=18, fontname="helv", fill=(0, 0, 0))
+        y += 6
+        page.draw_line(p1=(x, y), p2=(550, y), color=(0, 0, 0), width=2)
+        y += line_spacing
 
-        if not coincidencias:
-            pdf.cell(200, 10, txt="No se encontraron coincidencias.", ln=True)
-        else:
-            path_salida = path_salida.replace(".pdf", "* .pdf")  # Marca con asterisco
+        page.insert_text((x, y), "Resumen", fontsize=10, fontname="helv", fill=(0, 0, 0))
+        y += line_spacing
+        page.insert_text((x, y), f"Nombre de empresa : {nombre}", fontsize=9, fontname="helv", fill=rojo)
+        y += line_spacing
+        page.insert_text((x, y), f"NIT               : {nit}", fontsize=9, fontname="helv", fill=rojo)
+        y += line_spacing
+        page.insert_text((x, y), "Se buscó en los documentos:", fontsize=9, fontname="helv", fill=(0, 0, 0))
+        y += line_spacing
 
-        pdf.output(path_salida)
-        resultados.append(path_salida)
+        for archivo in pdf_textos:
+            color = rojo if archivo in resultados else (0, 0, 0)
+            page.insert_text((x + 20, y), archivo, fontsize=9, fontname="helv", fill=color)
+            y += line_spacing
 
-    return resultados
+        y += 5
+        page.insert_text((x, y), f"Resultados : {len(resultados)} documento(s) con al menos una coincidencia", fontsize=9, fontname="helv", fill=rojo)
+        y += line_spacing
+        fecha_actual = datetime.now().strftime("%d/%m/%Y %I:%M:%S %p").lower()
+        page.insert_text((x, y), f"Se guardó en : {fecha_actual}", fontsize=9, fontname="helv", fill=(0, 0, 0))
+
+        nombre_archivo = f"{nombre}"
+        if resultados:
+            nombre_archivo += "_coincidencia"
+        ruta_salida = os.path.join(carpeta_resultados, f"{nombre_archivo}.pdf")
+        doc.save(ruta_salida)
+        doc.close()
+        resultados_paths.append(ruta_salida)
+
+    return resultados_paths
