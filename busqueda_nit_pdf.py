@@ -2,19 +2,25 @@ import fitz  # PyMuPDF
 import os
 from datetime import datetime
 
+def leer_nits_y_nombres(archivo_txt):
+    """
+    Lee un archivo .txt con líneas en formato 'NIT<TAB>NOMBRE'
+    y devuelve una lista de tuplas (nit, nombre).
+    """
+    lista_nit_nombre = []
+    with open(archivo_txt, "r", encoding="utf-8") as f:
+        for linea in f:
+            partes = linea.strip().split("\t")
+            if len(partes) == 2:
+                nit, nombre = partes
+                lista_nit_nombre.append((nit.strip(), nombre.strip()))
+    return lista_nit_nombre
+
 def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
     os.makedirs(carpeta_resultados, exist_ok=True)
 
-    # Leer líneas del .txt (NIT <TAB> Nombre)
-    with open(archivo_txt, "r", encoding="utf-8") as f:
-        lineas = f.readlines()
-
-    nombres_nits = []
-    for linea in lineas:
-        partes = linea.strip().split("\t")
-        if len(partes) == 2:
-            nit, nombre = partes
-            nombres_nits.append((nombre.strip(), nit.strip()))
+    # Leer el .txt y obtener lista de (nit, nombre)
+    nits_nombres = leer_nits_y_nombres(archivo_txt)
 
     # Extraer texto de cada PDF
     pdf_textos = {}
@@ -27,7 +33,7 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
         pdf_textos[pdf.name] = texto_total.lower()
 
     resultados_paths = []
-    for nombre, nit in nombres_nits:
+    for nit, nombre in nits_nombres:
         nombre_lower = nombre.lower()
         nit_lower = nit.lower()
 
@@ -79,3 +85,9 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
         resultados_paths.append(ruta_salida)
 
     return resultados_paths
+
+# ----------------
+# Ejemplo de uso:
+# archivos_pdf = [open("archivo1.pdf", "rb"), open("archivo2.pdf", "rb")]
+# resultado = buscar_por_nit_y_nombre("nits.txt", archivos_pdf)
+# print(resultado)
