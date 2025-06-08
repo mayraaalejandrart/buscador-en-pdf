@@ -55,7 +55,7 @@ with tab1:
                     if tipo_busqueda == "Por nombre de persona":
                         paths = buscar_por_nombres(tmp_txt_path, pdf_paths, pdf_nombres)
                     else:
-                        paths = buscar_por_nit_y_nombre(tmp_txt_path, pdf_paths, pdf_nombres)
+                        paths = buscar_por_nit_y_nombre(tmp_txt_path, pdf_paths)
 
                     if not paths:
                         st.warning("No se encontraron coincidencias en los PDFs.")
