@@ -9,6 +9,7 @@ from busqueda_nit_pdf import buscar_por_nit_y_nombre
 from scripts.organizar import organizar_pdfs  # Verifica que la ruta sea correcta
 
 st.set_page_config(page_title="🔎 Buscador PDF + Organizador", layout="centered")
+
 st.title("🧰 Herramienta PDF: Búsqueda y Organización")
 
 tab1, tab2 = st.tabs(["🔍 Buscar en PDFs", "🗂️ Organizar PDFs"])
@@ -21,12 +22,12 @@ with tab1:
     )
 
     archivo_txt = st.file_uploader(
-        "Sube el archivo de nombres o NITs (formato .TXT)", 
+        "Sube el archivo de nombres o NITs (formato .TXT)",
         type=["txt"]
     )
     archivos_pdf = st.file_uploader(
-        "Sube los archivos PDF", 
-        type=["pdf"], 
+        "Sube los archivos PDF",
+        type=["pdf"],
         accept_multiple_files=True
     )
 
@@ -41,26 +42,28 @@ with tab1:
                         tmp_txt.write(archivo_txt.read())
                         tmp_txt_path = tmp_txt.name
 
-                    # Guardar PDFs temporalmente y obtener rutas
+                    # Guardar PDFs temporalmente Y guardar nombres originales
                     pdf_paths = []
+                    pdf_nombres = []
                     for archivo in archivos_pdf:
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
                             tmp_pdf.write(archivo.read())
                             pdf_paths.append(tmp_pdf.name)
+                            pdf_nombres.append(archivo.name)  # CORRECCIÓN: Guardar nombre original
 
-                    # Ejecutar búsqueda según tipo
+                    # Lógica de búsqueda con nombres originales
                     if tipo_busqueda == "Por nombre de persona":
-                        resultados_paths = buscar_por_nombres(tmp_txt_path, pdf_paths)
+                        paths = buscar_por_nombres(tmp_txt_path, pdf_paths, pdf_nombres)
                     else:
-                        resultados_paths = buscar_por_nit_y_nombre(tmp_txt_path, pdf_paths)
+                        paths = buscar_por_nit_y_nombre(tmp_txt_path, pdf_paths, pdf_nombres)
 
-                    if not resultados_paths:
+                    if not paths:
                         st.warning("No se encontraron coincidencias en los PDFs.")
                     else:
                         # Crear archivo ZIP con los resultados
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
                             with zipfile.ZipFile(tmp_zip.name, "w") as zf:
-                                for path in resultados_paths:
+                                for path in paths:
                                     zf.write(path, arcname=os.path.basename(path))
 
                             st.success("¡Búsqueda completada!")
@@ -77,12 +80,12 @@ with tab1:
 # ----- TAB 2: ORGANIZAR PDFS -----
 with tab2:
     archivos_para_organizar = st.file_uploader(
-        "Sube los PDFs a organizar", 
-        type=["pdf"], 
+        "Sube los PDFs a organizar",
+        type=["pdf"],
         accept_multiple_files=True
     )
     ruta_salida = st.text_input(
-        "Ruta de salida donde organizar los PDFs", 
+        "Ruta de salida donde organizar los PDFs",
         value="organizados"
     )
 
