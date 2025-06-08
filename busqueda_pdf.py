@@ -14,12 +14,12 @@ def buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados="resultados
 
     # Extraer texto de todos los PDFs
     pdf_textos = {}
-    for pdf in archivos_pdf:
+    for pdf_path in archivos_pdf:
         texto_total = ""
-        with fitz.open(stream=pdf.read(), filetype="pdf") as doc:
+        with fitz.open(pdf_path) as doc:
             for pagina in doc:
                 texto_total += pagina.get_text()
-        pdf_textos[pdf.name] = texto_total.lower()
+        pdf_textos[os.path.basename(pdf_path)] = texto_total.lower()
 
     resultados_paths = []
     for nombre in nombres:
