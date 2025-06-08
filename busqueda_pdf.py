@@ -5,28 +5,26 @@ from datetime import datetime
 def buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
     os.makedirs(carpeta_resultados, exist_ok=True)
 
-    # Leer líneas dependiendo del tipo de entrada
-    if isinstance(archivo_txt, str):
-        with open(archivo_txt, "r", encoding="utf-8") as f:
-            nombres = [line.strip() for line in f if line.strip()]
-    else:
-        nombres = [line.strip() for line in archivo_txt.read().decode("utf-8").splitlines() if line.strip()]
+    # Leer nombres del archivo TXT
+    with open(archivo_txt, "r", encoding="utf-8") as f:
+        nombres = [line.strip() for line in f if line.strip()]
 
-    # Extraer texto de todos los PDFs
+    # Extraer texto de cada PDF usando rutas
     pdf_textos = {}
-    for pdf_path in archivos_pdf:
+    for ruta_pdf in archivos_pdf:
         texto_total = ""
-        with fitz.open(pdf_path) as doc:
+        with fitz.open(ruta_pdf) as doc:
             for pagina in doc:
                 texto_total += pagina.get_text()
-        pdf_textos[os.path.basename(pdf_path)] = texto_total.lower()
+        nombre_archivo = os.path.basename(ruta_pdf)
+        pdf_textos[nombre_archivo] = texto_total.lower()
 
     resultados_paths = []
     for nombre in nombres:
         nombre_lower = nombre.lower()
         resultados = [archivo for archivo, texto in pdf_textos.items() if nombre_lower in texto]
 
-        # Crear documento de resultado
+        # Crear PDF con el resumen de resultados
         doc = fitz.open()
         page = doc.new_page()
         x, y = 50, 50
