@@ -5,22 +5,21 @@ from datetime import datetime
 def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
     os.makedirs(carpeta_resultados, exist_ok=True)
 
-    # Leer líneas: formato esperado 'NIT \t NOMBRE'
+    # Leer líneas del .txt (NIT <TAB> Nombre)
     with open(archivo_txt, "r", encoding="utf-8") as f:
         lineas = f.readlines()
 
-    # Crear lista de tuplas (nombre, nit)
     nombres_nits = []
     for linea in lineas:
-        partes = [p.strip() for p in linea.split("\t")]
+        partes = linea.strip().split("\t")
         if len(partes) == 2:
             nit, nombre = partes
-            nombres_nits.append((nombre, nit))
+            nombres_nits.append((nombre.strip(), nit.strip()))
 
-    # Leer textos de PDFs en memoria, usando pdf.name para el nombre original
+    # Extraer texto de cada PDF
     pdf_textos = {}
     for pdf in archivos_pdf:
-        pdf.seek(0)  # importante para reiniciar el stream
+        pdf.seek(0)
         texto_total = ""
         with fitz.open(stream=pdf.read(), filetype="pdf") as doc:
             for pagina in doc:
@@ -28,18 +27,15 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
         pdf_textos[pdf.name] = texto_total.lower()
 
     resultados_paths = []
-
     for nombre, nit in nombres_nits:
         nombre_lower = nombre.lower()
         nit_lower = nit.lower()
 
-        # Buscar coincidencias (nombre o nit) en cada PDF
         resultados = [
             archivo for archivo, texto in pdf_textos.items()
             if nombre_lower in texto or nit_lower in texto
         ]
 
-        # Crear PDF resumen con resultados
         doc = fitz.open()
         page = doc.new_page()
         x, y = 50, 50
@@ -66,22 +62,18 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
             y += line_spacing
 
         y += 5
-        page.insert_text(
-            (x, y),
-            f"Resultados : {len(resultados)} documento(s) con al menos una coincidencia",
-            fontsize=9,
-            fontname="helv",
-            fill=rojo
-        )
+        page.insert_text((x, y), f"Resultados : {len(resultados)} documento(s) con al menos una coincidencia", fontsize=9, fontname="helv", fill=rojo)
         y += line_spacing
         fecha_actual = datetime.now().strftime("%d/%m/%Y %I:%M:%S %p").lower()
         page.insert_text((x, y), f"Se guardó en : {fecha_actual}", fontsize=9, fontname="helv", fill=(0, 0, 0))
 
-        # Guardar con nombre solo de la empresa, añadir sufijo si hay resultados
-        nombre_archivo = f"{nombre}"
+        # Guardar PDF con solo el nombre de la empresa como nombre del archivo
+        nombre_archivo = nombre
         if resultados:
             nombre_archivo += "_coincidencia"
+        nombre_archivo = nombre_archivo.replace("/", "-").replace("\\", "-")
         ruta_salida = os.path.join(carpeta_resultados, f"{nombre_archivo}.pdf")
+
         doc.save(ruta_salida)
         doc.close()
         resultados_paths.append(ruta_salida)
