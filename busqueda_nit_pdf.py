@@ -28,6 +28,7 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
             nit, nombre = partes
             nombres_nits.append((nombre, nit))
 
+    # Extraer texto de cada PDF (guardando con nombre original)
     pdf_textos = {}
     for pdf in archivos_pdf:
         texto_total = ""
@@ -41,11 +42,13 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
         nombre_lower = nombre.lower()
         nit_lower = nit.lower()
 
+        # Buscar coincidencias en textos PDF
         resultados = [
             archivo for archivo, texto in pdf_textos.items()
             if nombre_lower in texto or nit_lower in texto
         ]
 
+        # Crear PDF con resultados
         doc = fitz.open()
         page = doc.new_page()
         x, y = 50, 50
@@ -57,30 +60,33 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
         page.draw_line(p1=(x, y), p2=(550, y), color=(0, 0, 0), width=2)
         y += line_spacing
 
+        # Aquí ponemos el nombre y el nit claramente separados, como quieres
         page.insert_text((x, y), "Resumen", fontsize=10, fontname="helv", fill=(0, 0, 0))
         y += line_spacing
-        page.insert_text((x, y), f"Se buscó : {nombre}", fontsize=9, fontname="helv", fill=rojo)
+        page.insert_text((x, y), f"Nombre de empresa : {nombre}", fontsize=9, fontname="helv", fill=rojo)
         y += line_spacing
-        page.insert_text((x, y), f"NIT       : {nit}", fontsize=9, fontname="helv", fill=rojo)
+        page.insert_text((x, y), f"NIT               : {nit}", fontsize=9, fontname="helv", fill=rojo)
         y += line_spacing
-        page.insert_text((x, y), "En documento :", fontsize=9, fontname="helv", fill=(0, 0, 0))
+        page.insert_text((x, y), "Se buscó en los documentos:", fontsize=9, fontname="helv", fill=(0, 0, 0))
         y += line_spacing
 
+        # Listar PDFs revisados, pintando en rojo los que dieron resultado
         for archivo in pdf_textos:
             color = rojo if archivo in resultados else (0, 0, 0)
             page.insert_text((x + 20, y), archivo, fontsize=9, fontname="helv", fill=color)
             y += line_spacing
 
         y += 5
-        page.insert_text((x, y), f"Resultados : {len(resultados)} documento(s) con {len(resultados)} instancia(s)", fontsize=9, fontname="helv", fill=rojo)
+        page.insert_text((x, y), f"Resultados : {len(resultados)} documento(s) con al menos una coincidencia", fontsize=9, fontname="helv", fill=rojo)
         y += line_spacing
         fecha_actual = datetime.now().strftime("%d/%m/%Y %I:%M:%S %p").lower()
         page.insert_text((x, y), f"Se guardó en : {fecha_actual}", fontsize=9, fontname="helv", fill=(0, 0, 0))
 
-        # Aquí limpiamos el nombre para usarlo como nombre de archivo, manteniendo solo el nombre, no el NIT
+        # Nombre del archivo solo con el nombre de la empresa, limpio para evitar errores
         nombre_archivo = limpiar_nombre_archivo(nombre)
         if resultados:
             nombre_archivo += "_coincidencia"
+
         ruta_salida = os.path.join(carpeta_resultados, f"{nombre_archivo}.pdf")
 
         doc.save(ruta_salida)
