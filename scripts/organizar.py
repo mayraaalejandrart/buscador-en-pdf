@@ -1,73 +1,56 @@
-import streamlit as st
-import zipfile
-import tempfile
 import os
-from pathlib import Path
 import shutil
+import streamlit as st
 
-# Corrige la importación según dónde tengas la función organizar_pdfs
-# from scripts.organizar import organizar_pdfs
-from scripts.organizar_utils import organizar_pdfs  # <-- Ajusta esto al archivo correcto
+def organizar_pdfs():
+    st.header("Organizar PDFs")
+    
+    folder = st.text_input("Ruta de la carpeta donde están los archivos PDF", value=os.getcwd())
 
-st.set_page_config(page_title="🗂️ Organizador de PDFs", layout="centered")
+    if not os.path.isdir(folder):
+        st.warning("La ruta especificada no es válida.")
+        return
 
-st.title("🗂️ Organizador de PDFs")
+    opciones = {
+        "1": "Conservar el nombre original",
+        "2": "Usar el mismo nuevo nombre para todos",
+        "3": "Especificar un nombre diferente para cada archivo"
+    }
 
-# Crear pestañas
-tab1, tab2 = st.tabs(["ℹ️ Instrucciones", "📁 Organizar PDFs"])
+    opcion = st.selectbox("¿Cómo deseas nombrar los archivos PDF?", list(opciones.values()))
 
-with tab1:
-    st.markdown("""
-    ### ¿Qué hace esta herramienta?
-    Esta sección te permite organizar múltiples archivos PDF en carpetas con nombres personalizados, según sus nombres.
+    if st.button("Organizar PDFs"):
+        archivos_pdf = [f for f in os.listdir(folder) if f.lower().endswith(".pdf")]
+        if not archivos_pdf:
+            st.warning("No se encontraron archivos PDF en la ruta especificada.")
+            return
 
-    **¿Cómo funciona?**
-    - Sube los archivos PDF generados previamente.
-    - El sistema creará una carpeta por cada archivo PDF (según su nombre base).
-    - Dentro de cada carpeta se ubicará su respectivo archivo.
+        for archivo in archivos_pdf:
+            ruta_original = os.path.join(folder, archivo)
+            nombre_sin_extension = os.path.splitext(archivo)[0]
+            carpeta_destino = os.path.join(folder, nombre_sin_extension)
+            os.makedirs(carpeta_destino, exist_ok=True)
 
-    Al final podrás descargar todos los archivos organizados en un único archivo `.zip`.
-    """)
+            # Determinar nuevo nombre según opción
+            if opcion == opciones["1"]:
+                nuevo_nombre = archivo
+            elif opcion == opciones["2"]:
+                nombre_comun = st.text_input("Ingresa el nuevo nombre común para todos (sin .pdf)", value="resultado")
+                if not nombre_comun:
+                    st.warning("Debes ingresar un nombre válido.")
+                    return
+                nuevo_nombre = f"{nombre_comun}.pdf"
+            elif opcion == opciones["3"]:
+                nuevo_nombre = st.text_input(f"Nuevo nombre para '{archivo}' (sin .pdf)", value=nombre_sin_extension)
+                if not nuevo_nombre:
+                    st.warning(f"Nombre inválido para el archivo '{archivo}'.")
+                    return
+                nuevo_nombre = f"{nuevo_nombre}.pdf"
+            else:
+                st.warning("Opción no válida.")
+                return
 
-with tab2:
-    archivos_para_organizar = st.file_uploader("Sube los PDFs a organizar", type=["pdf"], accept_multiple_files=True)
-
-    if st.button("📁 Organizar PDFs"):
-        if not archivos_para_organizar:
-            st.warning("Por favor, sube al menos un archivo PDF.")
-        else:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                try:
-                    pdf_paths = []
-                    for archivo in archivos_para_organizar:
-                        temp_path = Path(temp_dir) / archivo.name
-                        with open(temp_path, "wb") as f:
-                            f.write(archivo.read())
-                        pdf_paths.append(temp_path)
-
-                    # Crear un directorio de salida dentro del temporal
-                    ruta_salida = Path(temp_dir) / "organizados"
-                    ruta_salida.mkdir(exist_ok=True)
-
-                    # Ejecutar función organizadora
-                    resultado = organizar_pdfs(pdf_paths, ruta_salida)
-                    st.success(resultado)
-
-                    # Crear archivo ZIP
-                    zip_path = Path(temp_dir) / "organizados.zip"
-                    with zipfile.ZipFile(zip_path, "w") as zipf:
-                        for folder, _, files in os.walk(ruta_salida):
-                            for file in files:
-                                file_path = Path(folder) / file
-                                zipf.write(file_path, arcname=file_path.relative_to(ruta_salida))
-
-                    # Botón de descarga
-                    with open(zip_path, "rb") as f:
-                        st.download_button(
-                            label="📦 Descargar PDFs organizados (.zip)",
-                            data=f,
-                            file_name="organizados.zip",
-                            mime="application/zip"
-                        )
-                except Exception as e:
-                    st.error(f"Ocurrió un error al organizar los PDFs: {e}")
+            ruta_destino = os.path.join(carpeta_destino, nuevo_nombre)
+            shutil.move(ruta_original, ruta_destino)
+        
+        st.success("Archivos organizados correctamente.")
