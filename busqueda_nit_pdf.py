@@ -1,11 +1,20 @@
 import fitz  # PyMuPDF
 import os
+import re
 from datetime import datetime
 
-def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf_paths, archivos_pdf_nombres, carpeta_resultados="resultados"):
+def limpiar_nombre_archivo(nombre):
+    # Reemplaza caracteres inválidos para nombres de archivo por guion bajo
+    nombre_limpio = re.sub(r'[\\/*?:"<>|#]', '_', nombre)
+    nombre_limpio = nombre_limpio.strip()
+    if not nombre_limpio:
+        nombre_limpio = "archivo_sin_nombre"
+    return nombre_limpio
+
+def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
     os.makedirs(carpeta_resultados, exist_ok=True)
 
-    # Leer líneas con NIT y nombre
+    # Leer líneas y extraer (NIT, Nombre)
     if isinstance(archivo_txt, str):
         with open(archivo_txt, "r", encoding="utf-8") as f:
             lineas = f.readlines()
@@ -20,12 +29,12 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf_paths, archivos_pdf_nombre
             nombres_nits.append((nombre, nit))
 
     pdf_textos = {}
-    for ruta_pdf, nombre_pdf in zip(archivos_pdf_paths, archivos_pdf_nombres):
+    for pdf in archivos_pdf:
         texto_total = ""
-        with fitz.open(ruta_pdf) as doc:
+        with fitz.open(stream=pdf.read(), filetype="pdf") as doc:
             for pagina in doc:
                 texto_total += pagina.get_text()
-        pdf_textos[nombre_pdf] = texto_total.lower()
+        pdf_textos[pdf.name] = texto_total.lower()
 
     resultados_paths = []
     for nombre, nit in nombres_nits:
@@ -50,7 +59,9 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf_paths, archivos_pdf_nombre
 
         page.insert_text((x, y), "Resumen", fontsize=10, fontname="helv", fill=(0, 0, 0))
         y += line_spacing
-        page.insert_text((x, y), f"Se buscó : {nit} - {nombre}", fontsize=9, fontname="helv", fill=rojo)
+        page.insert_text((x, y), f"Se buscó : {nombre}", fontsize=9, fontname="helv", fill=rojo)
+        y += line_spacing
+        page.insert_text((x, y), f"NIT       : {nit}", fontsize=9, fontname="helv", fill=rojo)
         y += line_spacing
         page.insert_text((x, y), "En documento :", fontsize=9, fontname="helv", fill=(0, 0, 0))
         y += line_spacing
@@ -66,10 +77,12 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf_paths, archivos_pdf_nombre
         fecha_actual = datetime.now().strftime("%d/%m/%Y %I:%M:%S %p").lower()
         page.insert_text((x, y), f"Se guardó en : {fecha_actual}", fontsize=9, fontname="helv", fill=(0, 0, 0))
 
-        nombre_archivo = f"{nit}_{nombre}"
+        # Aquí limpiamos el nombre para usarlo como nombre de archivo, manteniendo solo el nombre, no el NIT
+        nombre_archivo = limpiar_nombre_archivo(nombre)
         if resultados:
             nombre_archivo += "_coincidencia"
         ruta_salida = os.path.join(carpeta_resultados, f"{nombre_archivo}.pdf")
+
         doc.save(ruta_salida)
         doc.close()
         resultados_paths.append(ruta_salida)
