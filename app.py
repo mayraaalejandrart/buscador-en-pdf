@@ -79,50 +79,67 @@ with tab1:
 
 # ----- TAB 2: ORGANIZAR PDFS -----
 with tab2:
-    archivos_para_organizar = st.file_uploader(
-        "Sube los PDFs a organizar",
-        type=["pdf"],
+    st.header("Organizar PDFs")
+
+    archivo_zip_o_pdfs = st.file_uploader(
+        "Sube los PDFs o un archivo ZIP con los PDFs a organizar",
+        type=["pdf", "zip"],
         accept_multiple_files=True
     )
 
-    opcion_nombres = st.selectbox("¿Cómo deseas nombrar los archivos PDF?", [
-        "Conservar el nombre original",
-        "Usar el mismo nuevo nombre para todos",
-        "Especificar un nombre diferente para cada archivo"
-    ])
+    opciones = {
+        "1": "Conservar el nombre original",
+        "2": "Usar el mismo nuevo nombre para todos",
+        "3": "Especificar un nombre diferente para cada archivo"
+    }
 
-    nombre_comun = None
-    nombres_individuales = []
+    opcion_nombres = st.selectbox("¿Cómo deseas nombrar los archivos PDF?", list(opciones.values()))
 
-    if opcion_nombres == "Usar el mismo nuevo nombre para todos":
-        nombre_comun = st.text_input("Nuevo nombre común (sin .pdf)", value="resultado")
-    elif opcion_nombres == "Especificar un nombre diferente para cada archivo":
-        for archivo in archivos_para_organizar or []:
-            nuevo_nombre = st.text_input(f"Nuevo nombre para '{archivo.name}'", value=Path(archivo.name).stem)
-            nombres_individuales.append(nuevo_nombre)
+    nombre_comun = ""
+    nombres_individuales = {}
+
+    if opcion_nombres == opciones["2"]:
+        nombre_comun = st.text_input("Ingresa el nombre común para todos los archivos", value="resultado")
+    elif opcion_nombres == opciones["3"] and archivo_zip_o_pdfs:
+        for archivo in archivo_zip_o_pdfs:
+            if archivo.name.lower().endswith(".pdf"):
+                nuevo_nombre = st.text_input(f"Nuevo nombre para '{archivo.name}'", value=archivo.name.replace(".pdf", ""))
+                nombres_individuales[archivo.name] = nuevo_nombre
 
     if st.button("📁 Organizar PDFs"):
-        if not archivos_para_organizar:
-            st.warning("Por favor, sube al menos un archivo PDF.")
+        if not archivo_zip_o_pdfs:
+            st.warning("Por favor, sube al menos un archivo PDF o un ZIP.")
         else:
             try:
                 with tempfile.TemporaryDirectory() as temp_dir:
                     pdf_paths = []
-                    for archivo in archivos_para_organizar:
-                        temp_path = Path(temp_dir) / archivo.name
-                        with open(temp_path, "wb") as f:
-                            f.write(archivo.read())
-                        pdf_paths.append(str(temp_path))
 
-                    zip_path = organizar_pdfs_zip(
+                    for archivo in archivo_zip_o_pdfs:
+                        if archivo.name.lower().endswith(".zip"):
+                            zip_path = Path(temp_dir) / archivo.name
+                            with open(zip_path, "wb") as f:
+                                f.write(archivo.read())
+                            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                                zip_ref.extractall(temp_dir)
+                            for path in Path(temp_dir).rglob("*.pdf"):
+                                pdf_paths.append(path)
+                        else:
+                            temp_path = Path(temp_dir) / archivo.name
+                            with open(temp_path, "wb") as f:
+                                f.write(archivo.read())
+                            pdf_paths.append(temp_path)
+
+                    # Ejecutar función de organización
+                    zip_resultado = organizar_pdfs_zip(
                         pdf_paths,
                         opcion_nombres,
                         nombre_comun,
                         nombres_individuales
                     )
 
-                    st.success("Archivos organizados correctamente.")
-                    with open(zip_path, "rb") as f:
-                        st.download_button("📦 Descargar ZIP", f, file_name="organizados.zip")
+                    st.success("PDFs organizados correctamente.")
+                    with open(zip_resultado, "rb") as f:
+                        st.download_button("📦 Descargar ZIP con carpetas organizadas", f, file_name="organizados.zip")
+
             except Exception as e:
                 st.error(f"Ocurrió un error al organizar los PDFs: {e}")
