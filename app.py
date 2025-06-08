@@ -84,26 +84,10 @@ with tab2:
         type=["pdf"],
         accept_multiple_files=True
     )
-    
     ruta_salida = st.text_input(
         "Ruta de salida donde organizar los PDFs",
         value="organizados"
     )
-
-    opciones = {
-        "Conservar el nombre original": "conservar",
-        "Usar el mismo nuevo nombre para todos": "mismo",
-        "Especificar un nombre diferente para cada archivo": "diferente"
-    }
-    opcion_seleccionada = st.selectbox(
-        "¿Cómo deseas nombrar los archivos PDF?",
-        list(opciones.keys())
-    )
-    
-    # En caso de que la opción sea usar el mismo nombre para todos
-    nombre_comun = ""
-    if opcion_seleccionada == "Usar el mismo nuevo nombre para todos":
-        nombre_comun = st.text_input("Ingresa el nuevo nombre común para todos (sin .pdf)", value="resultado")
 
     if st.button("📁 Organizar PDFs"):
         if not archivos_para_organizar:
@@ -118,9 +102,15 @@ with tab2:
                             f.write(archivo.read())
                         pdf_paths.append(str(temp_path))
 
-                    opcion_valor = opciones[opcion_seleccionada]
-                    
-                    resultado = organizar_pdfs(pdf_paths, ruta_salida, opcion_valor, nombre_comun)
-                    st.success(resultado)
+                    mensaje, zip_path = organizar_pdfs(pdf_paths, ruta_salida)
+                    st.success(mensaje)
+
+                    with open(zip_path, "rb") as f:
+                        st.download_button(
+                            label="📦 Descargar archivos organizados (.zip)",
+                            data=f,
+                            file_name="organizados.zip",
+                            mime="application/zip"
+                        )
             except Exception as e:
                 st.error(f"Ocurrió un error al organizar los PDFs: {e}")
