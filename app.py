@@ -6,7 +6,7 @@ from pathlib import Path
 
 from busqueda_pdf import buscar_por_nombres
 from busqueda_nit_pdf import buscar_por_nit_y_nombre
-from scripts.organizar import organizar_pdfs  # Verifica que la ruta sea correcta
+from scripts.organizar import organizar_pdfs_zip
 
 st.set_page_config(page_title="🔎 Buscador PDF + Organizador", layout="centered")
 
