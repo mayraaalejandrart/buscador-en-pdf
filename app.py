@@ -6,13 +6,11 @@ from pathlib import Path
 
 from busqueda_pdf import buscar_por_nombres
 from busqueda_nit_pdf import buscar_por_nit_y_nombre
-from scripts.organizar import organizar_pdfs  # Verifica que la ruta sea correcta según tu estructura
+from scripts.organizar import organizar_pdfs  # Verifica que la ruta sea correcta
 
 st.set_page_config(page_title="🔎 Buscador PDF + Organizador", layout="centered")
-
 st.title("🧰 Herramienta PDF: Búsqueda y Organización")
 
-# Crear pestañas
 tab1, tab2 = st.tabs(["🔍 Buscar en PDFs", "🗂️ Organizar PDFs"])
 
 # ----- TAB 1: BUSCAR EN PDF -----
@@ -43,39 +41,36 @@ with tab1:
                         tmp_txt.write(archivo_txt.read())
                         tmp_txt_path = tmp_txt.name
 
-                    # Guardar PDFs temporalmente
+                    # Guardar PDFs temporalmente y obtener rutas
                     pdf_paths = []
                     for archivo in archivos_pdf:
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
                             tmp_pdf.write(archivo.read())
                             pdf_paths.append(tmp_pdf.name)
 
-                    # Lógica de búsqueda
+                    # Ejecutar búsqueda según tipo
                     if tipo_busqueda == "Por nombre de persona":
-                        paths = buscar_por_nombres(tmp_txt_path, pdf_paths)
+                        resultados_paths = buscar_por_nombres(tmp_txt_path, pdf_paths)
                     else:
-                        paths = buscar_por_nit_y_nombre(tmp_txt_path, pdf_paths)
+                        resultados_paths = buscar_por_nit_y_nombre(tmp_txt_path, pdf_paths)
 
-                    if not paths:
+                    if not resultados_paths:
                         st.warning("No se encontraron coincidencias en los PDFs.")
                     else:
                         # Crear archivo ZIP con los resultados
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp_zip:
                             with zipfile.ZipFile(tmp_zip.name, "w") as zf:
-                                for path in paths:
+                                for path in resultados_paths:
                                     zf.write(path, arcname=os.path.basename(path))
 
-                        # Mostrar botón de descarga para el ZIP
-                        with open(tmp_zip.name, "rb") as fzip:
-                            st.download_button(
-                                label="📦 Descargar resultados (.zip)",
-                                data=fzip,
-                                file_name="resultados.zip",
-                                mime="application/zip"
-                            )
-
-                    # Eliminar archivos temporales si quieres
-                    # (opcional, pues tempfile los guarda en temporal y se limpian)
+                            st.success("¡Búsqueda completada!")
+                            with open(tmp_zip.name, "rb") as f:
+                                st.download_button(
+                                    label="📦 Descargar resultados (.zip)",
+                                    data=f,
+                                    file_name="resultados.zip",
+                                    mime="application/zip"
+                                )
             except Exception as e:
                 st.error(f"Ocurrió un error durante la búsqueda: {e}")
 
