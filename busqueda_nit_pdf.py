@@ -21,8 +21,16 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
             nit, nombre = partes
             nombres_nits.append((nombre, nit))
 
-    for linea in archivo_txt.read().decode("utf-8").splitlines():
-        partes = [p.strip() for p in linea.split("\t")]
+  lineas = []
+if isinstance(archivo_txt, str):
+    with open(archivo_txt, "r", encoding="utf-8") as f:
+        lineas = f.readlines()
+else:
+    lineas = archivo_txt.read().decode("utf-8").splitlines()
+
+for linea in lineas:
+    partes = [p.strip() for p in linea.split("\t")]
+
         if len(partes) == 2:
             nit, nombre = partes
             nombres_nits.append((nombre, nit))
