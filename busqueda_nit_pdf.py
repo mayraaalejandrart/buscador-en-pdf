@@ -1,4 +1,3 @@
-
 import fitz  # PyMuPDF
 import os
 from datetime import datetime
@@ -6,31 +5,16 @@ from datetime import datetime
 def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
     os.makedirs(carpeta_resultados, exist_ok=True)
 
-    nombres_nits = []
-
-    # Leer NITs y nombres según el tipo de entrada
+    # Leer líneas dependiendo del tipo de entrada
     if isinstance(archivo_txt, str):
         with open(archivo_txt, "r", encoding="utf-8") as f:
             lineas = f.readlines()
     else:
         lineas = archivo_txt.read().decode("utf-8").splitlines()
 
+    nombres_nits = []
     for linea in lineas:
         partes = [p.strip() for p in linea.split("\t")]
-        if len(partes) == 2:
-            nit, nombre = partes
-            nombres_nits.append((nombre, nit))
-
-  lineas = []
-if isinstance(archivo_txt, str):
-    with open(archivo_txt, "r", encoding="utf-8") as f:
-        lineas = f.readlines()
-else:
-    lineas = archivo_txt.read().decode("utf-8").splitlines()
-
-for linea in lineas:
-    partes = [p.strip() for p in linea.split("\t")]
-
         if len(partes) == 2:
             nit, nombre = partes
             nombres_nits.append((nombre, nit))
