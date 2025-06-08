@@ -1,20 +1,11 @@
 import fitz  # PyMuPDF
 import os
-import re
 from datetime import datetime
-
-def limpiar_nombre_archivo(nombre):
-    # Reemplaza caracteres inválidos para nombres de archivo por guion bajo
-    nombre_limpio = re.sub(r'[\\/*?:"<>|#]', '_', nombre)
-    nombre_limpio = nombre_limpio.strip()
-    if not nombre_limpio:
-        nombre_limpio = "archivo_sin_nombre"
-    return nombre_limpio
 
 def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
     os.makedirs(carpeta_resultados, exist_ok=True)
 
-    # Leer líneas y extraer (NIT, Nombre)
+    # Leer líneas del txt
     if isinstance(archivo_txt, str):
         with open(archivo_txt, "r", encoding="utf-8") as f:
             lineas = f.readlines()
@@ -26,29 +17,35 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
         partes = [p.strip() for p in linea.split("\t")]
         if len(partes) == 2:
             nit, nombre = partes
-            nombres_nits.append((nombre, nit))
+            nombres_nits.append((nombre, nit))  # nota orden (nombre, nit)
 
-    # Extraer texto de cada PDF (guardando con nombre original)
     pdf_textos = {}
     for pdf in archivos_pdf:
         texto_total = ""
-        with fitz.open(stream=pdf.read(), filetype="pdf") as doc:
-            for pagina in doc:
-                texto_total += pagina.get_text()
-        pdf_textos[pdf.name] = texto_total.lower()
+        if hasattr(pdf, "read"):  # archivo stream
+            pdf.seek(0)
+            with fitz.open(stream=pdf.read(), filetype="pdf") as doc:
+                for pagina in doc:
+                    texto_total += pagina.get_text()
+            nombre_pdf = getattr(pdf, "name", "archivo.pdf")
+        else:  # ruta string
+            with fitz.open(pdf) as doc:
+                for pagina in doc:
+                    texto_total += pagina.get_text()
+            nombre_pdf = os.path.basename(pdf)
+
+        pdf_textos[nombre_pdf] = texto_total.lower()
 
     resultados_paths = []
     for nombre, nit in nombres_nits:
         nombre_lower = nombre.lower()
         nit_lower = nit.lower()
 
-        # Buscar coincidencias en textos PDF
         resultados = [
             archivo for archivo, texto in pdf_textos.items()
             if nombre_lower in texto or nit_lower in texto
         ]
 
-        # Crear PDF con resultados
         doc = fitz.open()
         page = doc.new_page()
         x, y = 50, 50
@@ -60,7 +57,6 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
         page.draw_line(p1=(x, y), p2=(550, y), color=(0, 0, 0), width=2)
         y += line_spacing
 
-        # Aquí ponemos el nombre y el nit claramente separados, como quieres
         page.insert_text((x, y), "Resumen", fontsize=10, fontname="helv", fill=(0, 0, 0))
         y += line_spacing
         page.insert_text((x, y), f"Nombre de empresa : {nombre}", fontsize=9, fontname="helv", fill=rojo)
@@ -70,7 +66,6 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
         page.insert_text((x, y), "Se buscó en los documentos:", fontsize=9, fontname="helv", fill=(0, 0, 0))
         y += line_spacing
 
-        # Listar PDFs revisados, pintando en rojo los que dieron resultado
         for archivo in pdf_textos:
             color = rojo if archivo in resultados else (0, 0, 0)
             page.insert_text((x + 20, y), archivo, fontsize=9, fontname="helv", fill=color)
@@ -82,13 +77,11 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
         fecha_actual = datetime.now().strftime("%d/%m/%Y %I:%M:%S %p").lower()
         page.insert_text((x, y), f"Se guardó en : {fecha_actual}", fontsize=9, fontname="helv", fill=(0, 0, 0))
 
-        # Nombre del archivo solo con el nombre de la empresa, limpio para evitar errores
-        nombre_archivo = limpiar_nombre_archivo(nombre)
+        # Nombre del archivo resultado: solo nombre de empresa
+        nombre_archivo = nombre.strip().replace("/", "_")
         if resultados:
             nombre_archivo += "_coincidencia"
-
         ruta_salida = os.path.join(carpeta_resultados, f"{nombre_archivo}.pdf")
-
         doc.save(ruta_salida)
         doc.close()
         resultados_paths.append(ruta_salida)
