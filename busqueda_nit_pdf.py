@@ -5,12 +5,9 @@ from datetime import datetime
 def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
     os.makedirs(carpeta_resultados, exist_ok=True)
 
-    # Leer líneas dependiendo del tipo de entrada
-    if isinstance(archivo_txt, str):
-        with open(archivo_txt, "r", encoding="utf-8") as f:
-            lineas = f.readlines()
-    else:
-        lineas = archivo_txt.read().decode("utf-8").splitlines()
+    # Leer líneas del TXT con formato NIT \t Nombre
+    with open(archivo_txt, "r", encoding="utf-8") as f:
+        lineas = f.readlines()
 
     nombres_nits = []
     for linea in lineas:
@@ -19,13 +16,15 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
             nit, nombre = partes
             nombres_nits.append((nombre, nit))
 
+    # Extraer texto de PDFs (rutas)
     pdf_textos = {}
-    for pdf_path in archivos_pdf:
+    for ruta_pdf in archivos_pdf:
         texto_total = ""
-        with fitz.open(pdf_path) as doc:
+        with fitz.open(ruta_pdf) as doc:
             for pagina in doc:
                 texto_total += pagina.get_text()
-        pdf_textos[os.path.basename(pdf_path)] = texto_total.lower()
+        nombre_archivo = os.path.basename(ruta_pdf)
+        pdf_textos[nombre_archivo] = texto_total.lower()
 
     resultados_paths = []
     for nombre, nit in nombres_nits:
