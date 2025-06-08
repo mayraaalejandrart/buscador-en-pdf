@@ -78,6 +78,7 @@ with tab1:
                 st.error(f"Ocurrió un error durante la búsqueda: {e}")
 
 # ----- TAB 2: ORGANIZAR PDFS -----
+# ----- TAB 2: ORGANIZAR PDFS -----
 with tab2:
     archivos_para_organizar = st.file_uploader(
         "Sube los PDFs a organizar",
@@ -102,6 +103,7 @@ with tab2:
                             f.write(archivo.read())
                         pdf_paths.append(str(temp_path))
 
+                    # Llama a la función con rutas y carpeta destino
                     resultado = organizar_pdfs(pdf_paths, ruta_salida)
                     st.success(resultado)
             except Exception as e:
