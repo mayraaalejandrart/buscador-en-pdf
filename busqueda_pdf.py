@@ -6,7 +6,12 @@ from datetime import datetime
 def buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
     os.makedirs(carpeta_resultados, exist_ok=True)
 
-    nombres = [line.strip() for line in archivo_txt.read().decode("utf-8").splitlines() if line.strip()]
+    # Verifica si es ruta o archivo subido
+    if isinstance(archivo_txt, str):
+        with open(archivo_txt, "r", encoding="utf-8") as f:
+            nombres = [line.strip() for line in f if line.strip()]
+    else:
+        nombres = [line.strip() for line in archivo_txt.read().decode("utf-8").splitlines() if line.strip()]
 
     pdf_textos = {}
     for pdf in archivos_pdf:
