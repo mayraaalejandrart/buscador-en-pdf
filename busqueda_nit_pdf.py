@@ -22,26 +22,32 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
     # Leer el .txt y obtener lista de (nit, nombre)
     nits_nombres = leer_nits_y_nombres(archivo_txt)
 
-    # Extraer texto de cada PDF
+    # Extraer texto de cada PDF y almacenarlo con clave: nombre archivo
     pdf_textos = {}
     for pdf in archivos_pdf:
-        pdf.seek(0)
+        pdf.seek(0)  # importante, reinicia puntero del archivo
         texto_total = ""
-        with fitz.open(stream=pdf.read(), filetype="pdf") as doc:
-            for pagina in doc:
-                texto_total += pagina.get_text()
-        pdf_textos[pdf.name] = texto_total.lower()
+        try:
+            with fitz.open(stream=pdf.read(), filetype="pdf") as doc:
+                for pagina in doc:
+                    texto_total += pagina.get_text()
+            pdf_textos[pdf.name] = texto_total.lower()
+        except Exception as e:
+            print(f"Error al leer PDF {pdf.name}: {e}")
 
     resultados_paths = []
+
     for nit, nombre in nits_nombres:
         nombre_lower = nombre.lower()
         nit_lower = nit.lower()
 
+        # Buscar coincidencias por nombre o NIT en los textos de PDFs
         resultados = [
             archivo for archivo, texto in pdf_textos.items()
             if nombre_lower in texto or nit_lower in texto
         ]
 
+        # Crear nuevo PDF para resumen
         doc = fitz.open()
         page = doc.new_page()
         x, y = 50, 50
@@ -73,21 +79,17 @@ def buscar_por_nit_y_nombre(archivo_txt, archivos_pdf, carpeta_resultados="resul
         fecha_actual = datetime.now().strftime("%d/%m/%Y %I:%M:%S %p").lower()
         page.insert_text((x, y), f"Se guardó en : {fecha_actual}", fontsize=9, fontname="helv", fill=(0, 0, 0))
 
-        # Guardar PDF con solo el nombre de la empresa como nombre del archivo
-        nombre_archivo = nombre
+        # Guardar PDF con solo el nombre de la empresa, limpiando caracteres inválidos
+        nombre_archivo = nombre.replace("/", "-").replace("\\", "-")
         if resultados:
             nombre_archivo += "_coincidencia"
-        nombre_archivo = nombre_archivo.replace("/", "-").replace("\\", "-")
         ruta_salida = os.path.join(carpeta_resultados, f"{nombre_archivo}.pdf")
 
-        doc.save(ruta_salida)
-        doc.close()
-        resultados_paths.append(ruta_salida)
+        try:
+            doc.save(ruta_salida)
+            doc.close()
+            resultados_paths.append(ruta_salida)
+        except Exception as e:
+            print(f"Error al guardar PDF {ruta_salida}: {e}")
 
     return resultados_paths
-
-# ----------------
-# Ejemplo de uso:
-# archivos_pdf = [open("archivo1.pdf", "rb"), open("archivo2.pdf", "rb")]
-# resultado = buscar_por_nit_y_nombre("nits.txt", archivos_pdf)
-# print(resultado)
