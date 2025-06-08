@@ -2,29 +2,31 @@ import fitz  # PyMuPDF
 import os
 from datetime import datetime
 
-def buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
+def buscar_por_nombres(archivo_txt, archivos_pdf_paths, archivos_pdf_nombres, carpeta_resultados="resultados"):
     os.makedirs(carpeta_resultados, exist_ok=True)
 
-    # Leer nombres del archivo TXT
-    with open(archivo_txt, "r", encoding="utf-8") as f:
-        nombres = [line.strip() for line in f if line.strip()]
+    # Leer líneas del TXT
+    if isinstance(archivo_txt, str):
+        with open(archivo_txt, "r", encoding="utf-8") as f:
+            nombres = [line.strip() for line in f if line.strip()]
+    else:
+        nombres = [line.strip() for line in archivo_txt.read().decode("utf-8").splitlines() if line.strip()]
 
-    # Extraer texto de cada PDF usando rutas
+    # Extraer texto de PDFs usando rutas temporales, claves con nombres originales
     pdf_textos = {}
-    for ruta_pdf in archivos_pdf:
+    for ruta_pdf, nombre_pdf in zip(archivos_pdf_paths, archivos_pdf_nombres):
         texto_total = ""
         with fitz.open(ruta_pdf) as doc:
             for pagina in doc:
                 texto_total += pagina.get_text()
-        nombre_archivo = os.path.basename(ruta_pdf)
-        pdf_textos[nombre_archivo] = texto_total.lower()
+        pdf_textos[nombre_pdf] = texto_total.lower()
 
     resultados_paths = []
     for nombre in nombres:
         nombre_lower = nombre.lower()
         resultados = [archivo for archivo, texto in pdf_textos.items() if nombre_lower in texto]
 
-        # Crear PDF con el resumen de resultados
+        # Crear documento de resultado
         doc = fitz.open()
         page = doc.new_page()
         x, y = 50, 50
@@ -43,6 +45,7 @@ def buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados="resultados
         page.insert_text((x, y), "En documento :", fontsize=9, fontname="helv", fill=(0, 0, 0))
         y += line_spacing
 
+        # Mostrar nombres originales con color rojo si hay coincidencia
         for archivo in pdf_textos:
             color = rojo if archivo in resultados else (0, 0, 0)
             page.insert_text((x + 20, y), archivo, fontsize=9, fontname="helv", fill=color)
