@@ -6,7 +6,7 @@ from pathlib import Path
 
 from busqueda_pdf import buscar_por_nombres
 from busqueda_nit_pdf import buscar_por_nit_y_nombre
-from scripts.organizar import organizar_pdfs  # Ajusta según tu estructura de carpetas
+from scripts.organizar import organizar_pdfs  # Verifica que la ruta sea correcta según tu estructura
 
 st.set_page_config(page_title="🔎 Buscador PDF + Organizador", layout="centered")
 
@@ -65,14 +65,17 @@ with tab1:
                                 for path in paths:
                                     zf.write(path, arcname=os.path.basename(path))
 
-                            st.success("¡Búsqueda completada!")
-                            with open(tmp_zip.name, "rb") as f:
-                                st.download_button(
-                                    label="📦 Descargar resultados (.zip)",
-                                    data=f,
-                                    file_name="resultados.zip",
-                                    mime="application/zip"
-                                )
+                        # Mostrar botón de descarga para el ZIP
+                        with open(tmp_zip.name, "rb") as fzip:
+                            st.download_button(
+                                label="📦 Descargar resultados (.zip)",
+                                data=fzip,
+                                file_name="resultados.zip",
+                                mime="application/zip"
+                            )
+
+                    # Eliminar archivos temporales si quieres
+                    # (opcional, pues tempfile los guarda en temporal y se limpian)
             except Exception as e:
                 st.error(f"Ocurrió un error durante la búsqueda: {e}")
 
