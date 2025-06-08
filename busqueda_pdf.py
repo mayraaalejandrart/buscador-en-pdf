@@ -1,4 +1,3 @@
-
 import fitz  # PyMuPDF
 import os
 from datetime import datetime
@@ -6,13 +5,14 @@ from datetime import datetime
 def buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados="resultados"):
     os.makedirs(carpeta_resultados, exist_ok=True)
 
-    # Verifica si es ruta o archivo subido
+    # Leer líneas dependiendo del tipo de entrada
     if isinstance(archivo_txt, str):
         with open(archivo_txt, "r", encoding="utf-8") as f:
             nombres = [line.strip() for line in f if line.strip()]
     else:
         nombres = [line.strip() for line in archivo_txt.read().decode("utf-8").splitlines() if line.strip()]
 
+    # Extraer texto de todos los PDFs
     pdf_textos = {}
     for pdf in archivos_pdf:
         texto_total = ""
@@ -26,6 +26,7 @@ def buscar_por_nombres(archivo_txt, archivos_pdf, carpeta_resultados="resultados
         nombre_lower = nombre.lower()
         resultados = [archivo for archivo, texto in pdf_textos.items() if nombre_lower in texto]
 
+        # Crear documento de resultado
         doc = fitz.open()
         page = doc.new_page()
         x, y = 50, 50
