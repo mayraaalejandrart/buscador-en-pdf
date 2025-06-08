@@ -1,29 +1,37 @@
 import os
 import shutil
+import zipfile
 
-def organizar_pdfs(pdf_paths, carpeta_destino, opcion_nombres, nombre_comun="resultado"):
-    os.makedirs(carpeta_destino, exist_ok=True)
+def organizar_pdfs(archivos_pdf, carpeta_salida, opcion_nombres="conservar"):
+    """
+    Organiza PDFs en carpetas y los comprime en un ZIP.
 
-    for ruta_original in pdf_paths:
-        archivo = os.path.basename(ruta_original)
-        nombre_sin_extension = os.path.splitext(archivo)[0]
-        carpeta_subdestino = os.path.join(carpeta_destino, nombre_sin_extension)
-        os.makedirs(carpeta_subdestino, exist_ok=True)
+    archivos_pdf: lista de rutas absolutas a PDFs.
+    carpeta_salida: ruta donde se guardarán organizados.
+    opcion_nombres: "conservar", "nombre_comun" o "nombre_individual" (para futuros ajustes).
+    """
 
-        if opcion_nombres == "conservar":
-            nuevo_nombre = archivo
-        elif opcion_nombres == "mismo":
-            if not nombre_comun:
-                return "Error: Debes proporcionar un nombre común válido."
-            nuevo_nombre = f"{nombre_comun}.pdf"
-        elif opcion_nombres == "diferente":
-            # Aquí puedes implementar una lógica para pedir nombres individuales
-            # Para la demo, usaré el nombre original, pero podrías modificar esto.
-            nuevo_nombre = archivo
-        else:
-            return "Opción de nombre no válida."
+    os.makedirs(carpeta_salida, exist_ok=True)
 
-        ruta_destino = os.path.join(carpeta_subdestino, nuevo_nombre)
-        shutil.move(ruta_original, ruta_destino)
+    for archivo in archivos_pdf:
+        nombre_archivo = os.path.basename(archivo)
+        nombre_sin_ext = os.path.splitext(nombre_archivo)[0]
+        carpeta_destino = os.path.join(carpeta_salida, nombre_sin_ext)
+        os.makedirs(carpeta_destino, exist_ok=True)
 
-    return f"Archivos organizados correctamente en '{carpeta_destino}'."
+        # Aquí puedes agregar lógica para cambiar nombre según opcion_nombres si quieres
+
+        ruta_destino = os.path.join(carpeta_destino, nombre_archivo)
+        shutil.move(archivo, ruta_destino)
+
+    # Crear ZIP de toda la carpeta organizada
+    zip_path = os.path.join(carpeta_salida, "organizados.zip")
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, _, files in os.walk(carpeta_salida):
+            for file in files:
+                if file.endswith(".pdf"):
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, carpeta_salida)
+                    zipf.write(file_path, arcname)
+
+    return f"Archivos organizados correctamente en '{carpeta_salida}'.", zip_path
