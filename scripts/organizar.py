@@ -1,39 +1,50 @@
-import os
-import shutil
-import zipfile
+with tab2:
+    archivos_para_organizar = st.file_uploader(
+        "Sube los PDFs a organizar",
+        type=["pdf"],
+        accept_multiple_files=True
+    )
 
-def organizar_pdfs(archivos_pdf, carpeta_salida, opcion_nombres="conservar"):
-    """
-    Organiza PDFs en carpetas y los comprime en un ZIP.
+    opcion_nombres = st.selectbox(
+        "¿Cómo deseas nombrar los archivos PDF?",
+        ["Conservar el nombre original", "Usar el mismo nuevo nombre para todos", "Especificar un nombre diferente para cada archivo"]
+    )
 
-    archivos_pdf: lista de rutas absolutas a PDFs.
-    carpeta_salida: ruta donde se guardarán organizados.
-    opcion_nombres: "conservar", "nombre_comun" o "nombre_individual" (para futuras mejoras).
+    nombre_comun = None
+    nombres_individuales = None
 
-    Retorna:
-        mensaje (str), ruta_zip (str)
-    """
+    if opcion_nombres == "Usar el mismo nuevo nombre para todos":
+        nombre_comun = st.text_input("Ingrese el nuevo nombre común (sin .pdf)", value="resultado")
+    elif opcion_nombres == "Especificar un nombre diferente para cada archivo" and archivos_para_organizar:
+        nombres_individuales = []
+        for archivo in archivos_para_organizar:
+            nuevo_nombre = st.text_input(f"Nuevo nombre para '{archivo.name}' (sin .pdf)", value=Path(archivo.name).stem)
+            nombres_individuales.append(nuevo_nombre)
 
-    os.makedirs(carpeta_salida, exist_ok=True)
+    if st.button("📁 Organizar PDFs"):
+        if not archivos_para_organizar:
+            st.warning("Por favor, sube al menos un archivo PDF.")
+        else:
+            try:
+                import tempfile
+                from pathlib import Path
 
-    for archivo in archivos_pdf:
-        nombre_archivo = os.path.basename(archivo)
-        nombre_sin_ext = os.path.splitext(nombre_archivo)[0]
-        carpeta_destino = os.path.join(carpeta_salida, nombre_sin_ext)
-        os.makedirs(carpeta_destino, exist_ok=True)
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    pdf_paths = []
+                    for archivo in archivos_para_organizar:
+                        temp_path = Path(temp_dir) / archivo.name
+                        with open(temp_path, "wb") as f:
+                            f.write(archivo.read())
+                        pdf_paths.append(str(temp_path))
 
-        # Por ahora solo conserva el nombre original
-        ruta_destino = os.path.join(carpeta_destino, nombre_archivo)
-        shutil.move(archivo, ruta_destino)
+                    zip_path = organizar_pdfs(pdf_paths, opcion_nombres, nombre_comun, nombres_individuales)
 
-    # Crear ZIP con todos los PDFs organizados
-    zip_path = os.path.join(carpeta_salida, "organizados.zip")
-    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, _, files in os.walk(carpeta_salida):
-            for file in files:
-                if file.endswith(".pdf"):
-                    file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, carpeta_salida)
-                    zipf.write(file_path, arcname)
-
-    return f"Archivos organizados correctamente en '{carpeta_salida}'.", zip_path
+                    with open(zip_path, "rb") as f:
+                        st.download_button(
+                            label="📦 Descargar ZIP con PDFs organizados",
+                            data=f,
+                            file_name="organizados.zip",
+                            mime="application/zip"
+                        )
+            except Exception as e:
+                st.error(f"Ocurrió un error al organizar los PDFs: {e}")
