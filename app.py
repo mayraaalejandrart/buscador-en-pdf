@@ -78,6 +78,10 @@ with tab1:
                 st.error(f"Ocurrió un error durante la búsqueda: {e}")
 
 # ----- TAB 2: ORGANIZAR PDFS -----
+st.title("🗂 Organizador de PDFs")
+
+tab1, tab2 = st.tabs(["Buscar", "Organizar PDFs"])
+
 with tab2:
     archivos_para_organizar = st.file_uploader(
         "Sube los PDFs a organizar",
@@ -85,30 +89,35 @@ with tab2:
         accept_multiple_files=True
     )
 
-    opcion_nombres = st.selectbox(
-        "¿Cómo deseas nombrar los archivos PDF?",
-        ["Conservar el nombre original", "Usar el mismo nuevo nombre para todos", "Especificar un nombre diferente para cada archivo"]
-    )
+    opciones = {
+        "1": "Conservar el nombre original",
+        "2": "Usar el mismo nuevo nombre para todos",
+        "3": "Especificar un nombre diferente para cada archivo"
+    }
+    opcion = st.selectbox("¿Cómo deseas nombrar los archivos PDF?", list(opciones.values()))
+    opcion_key = None
+    for k, v in opciones.items():
+        if v == opcion:
+            opcion_key = k
+            break
 
     nombre_comun = None
-    nombres_individuales = None
+    nombres_individuales = {}
 
-    if opcion_nombres == "Usar el mismo nuevo nombre para todos":
-        nombre_comun = st.text_input("Ingrese el nuevo nombre común (sin .pdf)", value="resultado")
-    elif opcion_nombres == "Especificar un nombre diferente para cada archivo" and archivos_para_organizar:
-        nombres_individuales = []
+    if opcion_key == "2":
+        nombre_comun = st.text_input("Ingresa el nuevo nombre común para todos (sin .pdf)", value="resultado")
+    elif opcion_key == "3" and archivos_para_organizar:
+        st.write("Ingresa un nuevo nombre para cada archivo (sin .pdf):")
         for archivo in archivos_para_organizar:
-            nuevo_nombre = st.text_input(f"Nuevo nombre para '{archivo.name}' (sin .pdf)", value=Path(archivo.name).stem)
-            nombres_individuales.append(nuevo_nombre)
+            nuevo_nombre = st.text_input(f"Nuevo nombre para '{archivo.name}'", value=Path(archivo.name).stem)
+            nombres_individuales[archivo.name] = nuevo_nombre
 
     if st.button("📁 Organizar PDFs"):
         if not archivos_para_organizar:
             st.warning("Por favor, sube al menos un archivo PDF.")
         else:
             try:
-                import tempfile
-                from pathlib import Path
-
+                # Guardar PDFs temporales
                 with tempfile.TemporaryDirectory() as temp_dir:
                     pdf_paths = []
                     for archivo in archivos_para_organizar:
@@ -117,14 +126,14 @@ with tab2:
                             f.write(archivo.read())
                         pdf_paths.append(str(temp_path))
 
-                    zip_path = organizar_pdfs(pdf_paths, opcion_nombres, nombre_comun, nombres_individuales)
+                    zip_bytes = organizar_pdfs(pdf_paths, opcion_key, nombre_comun, nombres_individuales)
 
-                    with open(zip_path, "rb") as f:
-                        st.download_button(
-                            label="📦 Descargar ZIP con PDFs organizados",
-                            data=f,
-                            file_name="organizados.zip",
-                            mime="application/zip"
-                        )
+                    st.success("Archivos organizados correctamente. Descarga el ZIP:")
+                    st.download_button(
+                        label="📦 Descargar ZIP",
+                        data=zip_bytes,
+                        file_name="organizados.zip",
+                        mime="application/zip"
+                    )
             except Exception as e:
                 st.error(f"Ocurrió un error al organizar los PDFs: {e}")
