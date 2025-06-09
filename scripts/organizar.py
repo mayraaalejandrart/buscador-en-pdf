@@ -2,38 +2,37 @@ import os
 import shutil
 import zipfile
 from pathlib import Path
+import tempfile
 
-def organizar_pdfs_zip(pdf_paths, opcion_nombres, nombre_comun=None, nombres_individuales=None):
-    temp_output_dir = Path("temp_organizados")
-    temp_output_dir.mkdir(exist_ok=True)
+def organizar_pdfs_zip(pdf_paths, opcion_nombres, nombre_comun="", nombres_individuales=None):
+    nombres_individuales = nombres_individuales or {}
 
-    for i, pdf_path in enumerate(pdf_paths):
-        nombre_original = Path(pdf_path).stem
-        carpeta_destino = temp_output_dir / nombre_original
-        carpeta_destino.mkdir(exist_ok=True)
+    salida_temp = tempfile.mkdtemp()
+    
+    for pdf in pdf_paths:
+        nombre_original = Path(pdf).stem
+        carpeta_destino = Path(salida_temp) / nombre_original
+        carpeta_destino.mkdir(parents=True, exist_ok=True)
 
-        # Nombre del PDF dentro de la carpeta
         if opcion_nombres == "Conservar el nombre original":
-            nuevo_nombre = Path(pdf_path).name
+            nuevo_nombre = Path(pdf).name
         elif opcion_nombres == "Usar el mismo nuevo nombre para todos":
             nuevo_nombre = f"{nombre_comun}.pdf"
         elif opcion_nombres == "Especificar un nombre diferente para cada archivo":
-            nuevo_nombre = f"{nombres_individuales[i]}.pdf"
+            nuevo_nombre = f"{nombres_individuales.get(Path(pdf).name, nombre_original)}.pdf"
         else:
-            raise ValueError("Opción de nombre inválida.")
+            nuevo_nombre = Path(pdf).name
 
-        destino = carpeta_destino / nuevo_nombre
-        shutil.copy2(pdf_path, destino)
+        shutil.copy2(pdf, carpeta_destino / nuevo_nombre)
 
-    # Crear ZIP con todas las carpetas
-    zip_path = Path("organizados.zip")
-    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for folder, _, files in os.walk(temp_output_dir):
-            for file in files:
-                file_path = Path(folder) / file
-                zipf.write(file_path, arcname=file_path.relative_to(temp_output_dir))
-
-    # Limpiar carpeta temporal
-    shutil.rmtree(temp_output_dir)
+    # Crear ZIP con todo
+    zip_path = os.path.join(salida_temp, "organizados.zip")
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for carpeta, _, archivos in os.walk(salida_temp):
+            for archivo in archivos:
+                if archivo != "organizados.zip":
+                    full_path = os.path.join(carpeta, archivo)
+                    relative_path = os.path.relpath(full_path, salida_temp)
+                    zipf.write(full_path, relative_path)
 
     return zip_path
